@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pygame as pyg
 
-from chessBoard.chess_board import ChessBoard
+from chessBoard.chess_board import ChessBoard, MakeMoves
 
 
 WIDTH = HEIGHT = 512    # Dimensions of the rendered chess board
@@ -11,6 +11,15 @@ DIM = 8
 MAX_FPS = 60
 
 BOARD = {}
+
+
+def isSelectablePiece(gamestate, row, col):
+    piece = gamestate.board[row][col]
+    if piece == "__":
+        return False
+    if gamestate.whiteToMove:
+        return piece in gamestate.whitepieces
+    return piece in gamestate.blackpieces
 
 def loadAssets():
     pieces = ["bp", "bR" , "bN", "bB", "bQ", "bK", "wp" , "wR" , "wN", "wB", "wQ", "wK"]    #List of pieces 
@@ -43,9 +52,20 @@ def main():
                 if squareSelected == (row, col):  # the user clicked the same square twice
                     squareSelected = ()  # deselect
                     squareClicked = []  # clear clicks
+                elif not squareClicked:
+                    if isSelectablePiece(gamestate, row, col):
+                        squareSelected = (row, col)
+                        squareClicked.append(squareSelected)
                 else:
                     squareSelected = (row, col)
                     squareClicked.append(squareSelected)  # append for both 1st and 2nd clicks
+
+                if len(squareClicked) == 2:  # after 2nd click
+                    move = MakeMoves(squareClicked[0], squareClicked[1], gamestate.board)
+                    print(move.getChessNotation())
+                    gamestate.makeMove(move)
+                    squareSelected = ()  # reset user clicks
+                    squareClicked = []
         
         drawGameState(screen, gamestate)
         clock.tick(MAX_FPS)

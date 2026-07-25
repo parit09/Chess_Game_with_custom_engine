@@ -8,17 +8,96 @@ class ChessBoard:
                     ["__","__","__","__","__","__","__","__"],
                     ["wp","wp","wp","wp","wp","wp","wp","wp"],
                     ["wR","wN","wB","wQ","wK","wB","wN","wR"]]
+
+        self.promotionListBlack = [["bR"], ["bN"], ["bB"], ["bQ"]]
+        self.promotionListWhite = [["wR"], ["wN"], ["wB"], ["wQ"]]
         
         self.whiteToMove = True
         self.moveLogs = []
+        self.blackpieces = ["bR" , "bN", "bB", "bQ", "bK", "bp"]
+        self.whitepieces = ["wR" , "wN", "wB", "wQ", "wK", "wp"]
 
+    def makeMove(self, move):
+        validMove = ((move.pieceMoved in ("bp", "wp") and self.pawnMove(move)) or
+                    (move.pieceMoved in ("bK", "wK") and self.kingMove(move)) or
+                    (move.pieceMoved in ("bQ", "wQ") and self.queenMove(move)) or
+                    (move.pieceMoved in ("bN", "wN") and self.nightMove(move)) or
+                    (move.pieceMoved in ("bB", "wB") and self.bishopMove(move)) or
+                    (move.pieceMoved in ("bR", "wR") and self.rookMove(move)))
+        if self.validateTurn(move) and validMove:
+            self.board[move.startRow][move.startCol] = "__"
+            self.board[move.endRow][move.endCol] = move.pieceMoved
+            self.moveLogs.append(move)  # log the move so we can undo it later
+            self.whiteToMove = not self.whiteToMove  # swap players
+            return True
+
+        return False
+
+    def validateTurn(self, move):
+        if(self.whiteToMove and move.pieceMoved in self.whitepieces) or (not self.whiteToMove and move.pieceMoved in self.blackpieces):
+            return True
+        return False
+
+    def validMove(self, move):
+        if((move.pieceCaptured == "__") or
+         (self.whiteToMove and move.pieceCaptured not in self.whitepieces) or
+         (not self.whiteToMove and move.pieceCaptured not in self.blackpieces)):
+            return True
+        return False
+
+    def pawnMove(self, move):
+        if self.validMove(move):
+            if (move.pieceMoved == "bp"):
+                if move.startRow == 1 and move.endCol == move.startCol and move.endRow == 3:
+                    return True
+                elif move.endCol == move.startCol and move.endRow - move.startRow == 1:
+                    return True
+            else:
+                if move.startRow == 6 and move.endCol == move.startCol and move.endRow == 4:
+                    return True
+                elif move.endCol == move.startCol and move.startRow - move.endRow == 1:
+                    return True
+
+        return False
+
+    def rookMove(self, move):
+        if self.validMove(move) and (move.startRow == move.endRow or move.startCol == move.endCol):
+                return True
+        return False
+
+    def bishopMove(self, move):
+        if self.validMove(move) and (abs(move.startRow - move.endRow) == abs(move.startCol - move.endCol)):
+                return True
+        return False
+
+    def queenMove(self, move):
+        if self.rookMove(move) or self.bishopMove(move):
+            return True
+        return False
+
+    def nightMove(self, move):
+        if self.validMove(move):
+            diffcol = abs(move.startCol - move.endCol)
+            diffrow = abs(move.startRow - move.endRow)
+            if((diffcol == 1 and diffrow == 2) or (diffrow == 1 and diffcol == 2)):
+                return True
+        return False
+
+    def kingMove(self, move):
+        if self.validMove(move) :
+            diffcol = abs(move.startCol - move.endCol)
+            diffrow = abs(move.startRow - move.endRow)
+            if(diffrow == 1 or diffcol == 1):
+                return True
+        return False
+    
 
 class MakeMoves:
 
     rankToRows = {"1":7, "2":6, "3":5, "4":4, "5":3, "6":2, "7":1, "8":0}
-    rowsToRank = {"7":"1", "6":"2", "5":"3", "4":"4", "3":"5", "2":"6", "1":"7", "0":"8"}
+    rowsToRank = {v:k for k, v in rankToRows.items()}
     fileToCols = {"a":0, "b":1, "c":2, "d":3, "e":4, "f":5, "g":6, "h":7}
-    colsToFile = {"0":"a", "1":"b", "2":"c", "3":"d", "4":"e", "5":"f", "6":"g", "7":"h"}
+    colsToFile = {v:k for k, v in fileToCols.items()}
 
     def __init__(self,startpos, endpos, board):
         self.startRow = startpos[0]
@@ -28,3 +107,9 @@ class MakeMoves:
 
         self.pieceMoved = board[self.startRow][self.startCol]
         self.pieceCaptured = board[self.endRow][self.endCol]
+
+    def getChessNotation(self):
+        return self.getRankFile(self.startRow, self.startCol) + self.getRankFile(self.endRow, self.endCol)
+
+    def getRankFile(self, r, c):
+        return self.colsToFile[c] + self.rowsToRank[r]
