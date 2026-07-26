@@ -16,6 +16,10 @@ class ChessBoard:
         self.moveLogs = []
         self.blackpieces = ["bR" , "bN", "bB", "bQ", "bK", "bp"]
         self.whitepieces = ["wR" , "wN", "wB", "wQ", "wK", "wp"]
+        self.hasWhiteRooksMoved = [False, False]
+        self.hasBlackRooksMoved = [False, False]
+        self.hasBlackKingMoved = False
+        self.hasWhiteKingMoved = False
 
     def makeMove(self, move):
         validMove = ((move.pieceMoved in ("bp", "wp") and self.pawnMove(move)) or
@@ -45,6 +49,58 @@ class ChessBoard:
             return True
         return False
 
+    def possibleBishopMoves(self, move):
+        possibleMovesList = []
+        currRow = move.startRow
+        currCol = move.startCol
+        dx = [1, -1, 1, -1]
+        dy = [-1, -1, 1, 1]
+
+        for i in range (4):
+                x, y = currRow + dx[i], currCol + dy[i] 
+                while (x < 8 and y < 8 and x > -1 and y > -1):
+                    if(self.board[x][y] == "__"):
+                        possibleMovesList.append((x,y))
+                    else:
+                        if(self.whiteToMove):
+                            if(self.board[x][y] in self.blackpieces and self.board[x][y] != "bK"):
+                                possibleMovesList.append((x,y))
+                        else:
+                            if(self.board[x][y] in self.whitepieces and self.board[x][y] != "wK"):
+                                possibleMovesList.append((x,y))
+
+                        break
+                    x = x + dx[i]
+                    y = y + dy[i]
+
+        return possibleMovesList
+
+    def possibleRookMoves(self, move):
+        possibleMovesList = []
+        currRow = move.startRow
+        currCol = move.startCol
+        dx = [1, 0, -1, 0]
+        dy = [0, -1, 0, 1]
+    
+        for i in range (4):
+                x, y = currRow + dx[i], currCol + dy[i] 
+                while (x < 8 and y < 8 and x > -1 and y > -1):
+                    if(self.board[x][y] == "__"):
+                        possibleMovesList.append((x,y))
+                    else:
+                        if(self.whiteToMove):
+                            if(self.board[x][y] in self.blackpieces and self.board[x][y] != "bK"):
+                                possibleMovesList.append((x,y))
+                        else:
+                            if(self.board[x][y] in self.whitepieces and self.board[x][y] != "wK"):
+                                possibleMovesList.append((x,y))
+                                
+                        break
+                    x = x + dx[i]
+                    y = y + dy[i]
+    
+        return possibleMovesList
+                          
     def pawnMove(self, move):
         if self.validMove(move):
             if (move.pieceMoved == "bp"):
@@ -61,19 +117,19 @@ class ChessBoard:
         return False
 
     def rookMove(self, move):
-        if self.validMove(move) and (move.startRow == move.endRow or move.startCol == move.endCol):
+        if (self.validMove(move) and (move.startRow == move.endRow or move.startCol == move.endCol)
+            and (move.endRow, move.endCol) in self.possibleRookMoves(move)):
                 return True
         return False
 
     def bishopMove(self, move):
-        if self.validMove(move) and (abs(move.startRow - move.endRow) == abs(move.startCol - move.endCol)):
+        if (self.validMove(move) and (abs(move.startRow - move.endRow) == abs(move.startCol - move.endCol))
+            and (move.endRow, move.endCol) in self.possibleBishopMoves(move)):
                 return True
         return False
 
     def queenMove(self, move):
-        if self.rookMove(move) or self.bishopMove(move):
-            return True
-        return False
+        return self.rookMove(move) or self.bishopMove(move)
 
     def nightMove(self, move):
         if self.validMove(move):
@@ -88,7 +144,10 @@ class ChessBoard:
             diffcol = abs(move.startCol - move.endCol)
             diffrow = abs(move.startRow - move.endRow)
             if(diffrow == 1 or diffcol == 1):
+                if(move.pieceMoved == "bK"): self.hasBlackKingMoved = True
+                else: self.hasWhiteKingMoved = True
                 return True
+
         return False
     
 
