@@ -109,9 +109,81 @@ class ChessBoard:
         return possibleMovesList
 
     def isSquareSafe(self, row, col):
-        # Implementation for checking if a square is safe
-        pass
+        enemy = "b" if self.whiteToMove else "w"
 
+        # ---------------- Pawn Threat ----------------
+        if self.whiteToMove:
+            if row - 1 >= 0:
+                if col - 1 >= 0 and self.board[row - 1][col - 1] == "bp":
+                    return False
+                if col + 1 < 8 and self.board[row - 1][col + 1] == "bp":
+                    return False
+        else:
+            if row + 1 < 8:
+                if col - 1 >= 0 and self.board[row + 1][col - 1] == "wp":
+                    return False
+                if col + 1 < 8 and self.board[row + 1][col + 1] == "wp":
+                    return False
+
+        # ---------------- Rook / Queen Threat ----------------
+        rookDirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+
+        for dx, dy in rookDirs:
+            x, y = row + dx, col + dy
+            while 0 <= x < 8 and 0 <= y < 8:
+                piece = self.board[x][y]
+                if piece != "__":
+                    if piece == enemy + "R" or piece == enemy + "Q":
+                        return False
+                    break
+
+                x += dx
+                y += dy
+
+        # ---------------- Bishop / Queen Threat ----------------
+        bishopDirs = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+
+        for dx, dy in bishopDirs:
+            x, y = row + dx, col + dy
+            while 0 <= x < 8 and 0 <= y < 8:
+                piece = self.board[x][y]
+                if piece != "__":
+                    if piece == enemy + "B" or piece == enemy + "Q":
+                        return False
+                    break
+
+                x += dx
+                y += dy
+
+        # ---------------- Knight Threat ----------------
+        knightMoves = [
+            (2, 1), (2, -1), (-2, 1), (-2, -1),
+            (1, 2), (1, -2), (-1, 2), (-1, -2)
+        ]
+
+        for dx, dy in knightMoves:
+            x = row + dx
+            y = col + dy
+
+            if 0 <= x < 8 and 0 <= y < 8:
+                if self.board[x][y] == enemy + "N":
+                    return False
+
+        # ---------------- King Threat ----------------
+        kingMoves = [
+            (1, 0), (1, 1), (0, 1), (-1, 1),
+            (-1, 0), (-1, -1), (0, -1), (1, -1)
+        ]
+
+        for dx, dy in kingMoves:
+            x = row + dx
+            y = col + dy
+
+            if 0 <= x < 8 and 0 <= y < 8:
+                if self.board[x][y] == enemy + "K":
+                    return False
+
+        return True
     def pawnMove(self, move):
         if(self.pawnTakes(move)): return True
         if self.validMove(move):
@@ -187,19 +259,19 @@ class ChessBoard:
                 return True
         return False
 
-    def kingMove(self, move):
-        if move.pieceMoved == "wK":
-            self.whiteKingPos = (move.endRow, move.endCol)
-        if move.pieceMoved == "bK":
-            self.blackKingPos = (move.endRow, move.endCol)
+    def isKingInCheck(self):
+        kingPos = self.whiteKingPos if self.whiteToMove else self.blackKingPos
+        return not self.isSquareSafe(kingPos[0], kingPos[1])
 
-        if self.validMove(move) :
-            diffcol = abs(move.startCol - move.endCol)
-            diffrow = abs(move.startRow - move.endRow)
-            if(diffrow == 1 or diffcol == 1):
-                if(move.pieceMoved == "bK"): self.hasBlackKingMoved = True
-                else: self.hasWhiteKingMoved = True
-                return True
+    def kingMove(self, move):
+        if(self.validMove(move) and (move.endRow, move.endCol) in self.possibleKingMoves(move) 
+           and self.isSquareSafe(move.endRow, move.endCol)):
+            if move.pieceMoved == "wK":
+                self.whiteKingPos = (move.endRow, move.endCol)
+            if move.pieceMoved == "bK":
+                self.blackKingPos = (move.endRow, move.endCol)
+
+            return True
 
         return False
     
