@@ -30,16 +30,65 @@ class ChessBoard:
                     (move.pieceMoved in ("bN", "wN") and self.nightMove(move)) or
                     (move.pieceMoved in ("bB", "wB") and self.bishopMove(move)) or
                     (move.pieceMoved in ("bR", "wR") and self.rookMove(move)))
+
         if self.validateTurn(move) and validMove:
             enPassantMove = self.Enpassant(move)
             self.board[move.startRow][move.startCol] = "__"
             self.board[move.endRow][move.endCol] = move.pieceMoved
+
             if enPassantMove and self.whiteToMove:
                 self.board[move.endRow + 1][move.endCol] = "__"
             elif enPassantMove and not self.whiteToMove:
                 self.board[move.endRow - 1][move.endCol] = "__"
+
+            if(self.isKingInCheck()):
+                self.board[move.startRow][move.startCol] = move.pieceMoved 
+                self.board[move.endRow][move.endCol] = move.pieceCaptured
+                return False
+            
             self.moveLogs.append(move)  # log the move so we can undo it later
             self.whiteToMove = not self.whiteToMove  # swap players
+
+            if(move.pieceMoved == "bK"):
+                if((move.startRow, move.startCol) == (0, 4) and 
+                    (self.blackKingPos == (0, 2) or self.blackKingPos == (0, 6)) 
+                    and not self.hasBlackKingMoved):
+                    if(self.blackKingPos == (0,2) and not self.hasBlackRooksMoved[0]):
+                        self.hasBlackRooksMoved[0] = True
+                        self.board[0][0] = "__"
+                        self.board[0][3] = "bR"
+                    elif(self.blackKingPos == (0,6) and not self.hasBlackRooksMoved[1]):
+                        self.hasBlackRooksMoved[1] = True
+                        self.board[0][7] = "__"
+                        self.board[0][5] = "bR"
+
+                self.hasBlackKingMoved = True
+            elif(move.pieceMoved == "wK"):
+                if((move.startRow, move.startCol) == (7, 4) and 
+                    (self.whiteKingPos == (7, 2) or self.whiteKingPos == (7, 6)) 
+                    and not self.hasWhiteKingMoved):
+                        if(self.whiteKingPos == (7,2) and not self.hasWhiteRooksMoved[0]):
+                            self.hasWhiteRooksMoved[0] = True
+                            self.board[7][0] = "__"
+                            self.board[7][3] = "wR"
+                        elif(self.whiteKingPos == (7,6) and not self.hasWhiteRooksMoved[1]):
+                            self.hasWhiteRooksMoved[1] = True
+                            self.board[7][7] = "__"
+                            self.board[7][5] = "wR"
+                
+                self.hasWhiteKingMoved = True
+
+            if(move.pieceMoved == "bR"):
+                if(move.startRow == 0 and move.startCol == 0):
+                    self.hasBlackRooksMoved[0] = True
+                elif(move.startRow == 0 and move.startCol == 7):
+                    self.hasBlackRooksMoved[1] = True
+            if(move.pieceMoved == "wR"):
+                if(move.startRow == 7 and move.startCol == 0):
+                    self.hasWhiteRooksMoved[0] = True
+                elif(move.startRow == 7 and move.startCol == 7):
+                    self.hasWhiteRooksMoved[1] = True
+            
             return True
 
         return False
@@ -184,6 +233,7 @@ class ChessBoard:
                     return False
 
         return True
+    
     def pawnMove(self, move):
         if(self.pawnTakes(move)): return True
         if self.validMove(move):
@@ -295,7 +345,60 @@ class ChessBoard:
                             if(self.board[x][y] in self.whitepieces and self.board[x][y] != "wK"):
                                 possibleMovesList.append((x,y))
 
+        if(self.isCastlingPossible(move)):
+            self.castlingMove(possibleMovesList)
+
         return possibleMovesList
+
+    def isCastlingPossible(self, move):
+        if(self.whiteToMove and not self.hasWhiteKingMoved and 
+           ((not self.hasWhiteRooksMoved[0] and self.board[7][3] == self.board[7][2] == self.board[7][1] == "__") or
+            (not self.hasWhiteRooksMoved[1] and self.board[7][5] == self.board[7][6] == "__"))):
+            return True
+        elif(not self.whiteToMove and not self.hasBlackKingMoved and 
+           ((not self.hasBlackRooksMoved[0] and self.board[0][3] == self.board[0][2] == self.board[0][1] == "__") or
+            (not self.hasBlackRooksMoved[1] and self.board[0][5] == self.board[0][6] == "__"))):
+            return True
+
+        return False
+
+    def castlingMove(self, possibleMovesList):
+        if self.whiteToMove:
+            if not self.hasWhiteKingMoved:
+                # Queenside
+                if (not self.hasWhiteRooksMoved[0] and
+                    self.board[7][3] == self.board[7][2] == self.board[7][1] == "__" 
+                    and (self.isSquareSafe(7, 0) and self.isSquareSafe(7, 1) and self.isSquareSafe(7, 2)
+                    and self.isSquareSafe(7, 3) and self.isSquareSafe(7,4))
+                    and self.board[7][0] == "wR" and not self.hasWhiteRooksMoved[0]):
+                    possibleMovesList.append((7, 2))
+
+                # Kingside
+                if (not self.hasWhiteRooksMoved[1] and
+                    self.board[7][5] == self.board[7][6] == "__" 
+                    and (self.isSquareSafe(7, 4) and self.isSquareSafe(7, 5) 
+                    and self.isSquareSafe(7, 6) and self.isSquareSafe(7, 7))
+                    and self.board[7][7] == "wR" and not self.hasWhiteRooksMoved[1]):
+                    possibleMovesList.append((7, 6))
+
+        else:
+            if not self.hasBlackKingMoved:
+                # Queenside
+                if (not self.hasBlackRooksMoved[0] and
+                    self.board[0][3] == self.board[0][2] == self.board[0][1] == "__"
+                    and (self.isSquareSafe(0, 0) and self.isSquareSafe(0, 1) and self.isSquareSafe(0, 2)
+                    and self.isSquareSafe(0, 3) and self.isSquareSafe(0,4))
+                    and self.board[0][0] == "bR" and not self.hasBlackRooksMoved[0]):
+                    possibleMovesList.append((0, 2))
+
+                # Kingside
+                if (not self.hasBlackRooksMoved[1] and
+                    self.board[0][5] == self.board[0][6] == "__"
+                    and (self.isSquareSafe(0, 4) and self.isSquareSafe(0, 5) 
+                    and self.isSquareSafe(0, 6) and self.isSquareSafe(0, 7))
+                    and self.board[0][7] == "bR" and not self.hasBlackRooksMoved[1]):
+                    possibleMovesList.append((0, 6))
+        
     
 
 class MakeMoves:
