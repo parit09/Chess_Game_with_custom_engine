@@ -8,9 +8,6 @@ class ChessBoard:
                     ["__","__","__","__","__","__","__","__"],
                     ["wp","wp","wp","wp","wp","wp","wp","wp"],
                     ["wR","wN","wB","wQ","wK","wB","wN","wR"]]
-
-        self.promotionListBlack = [["bR"], ["bN"], ["bB"], ["bQ"]]
-        self.promotionListWhite = [["wR"], ["wN"], ["wB"], ["wQ"]]
         
         self.whiteToMove = True
         self.moveLogs = []
@@ -22,8 +19,12 @@ class ChessBoard:
         self.hasWhiteKingMoved = False
         self.whiteKingPos = (7, 4)
         self.blackKingPos = (0, 4)
+        self.pendingPromotion = None
 
     def makeMove(self, move):
+        if self.pendingPromotion is not None:
+            return False
+
         validMove = ((move.pieceMoved in ("bp", "wp") and self.pawnMove(move)) or
                     (move.pieceMoved in ("bK", "wK") and self.kingMove(move)) or
                     (move.pieceMoved in ("bQ", "wQ") and self.queenMove(move)) or
@@ -45,6 +46,9 @@ class ChessBoard:
                 self.board[move.startRow][move.startCol] = move.pieceMoved 
                 self.board[move.endRow][move.endCol] = move.pieceCaptured
                 return False
+
+            if move.pieceMoved in ("wp", "bp") and self.isPromotionMove(move):
+                return self.beginPromotion(move)
             
             self.moveLogs.append(move)  # log the move so we can undo it later
             self.whiteToMove = not self.whiteToMove  # swap players
@@ -104,6 +108,34 @@ class ChessBoard:
          (not self.whiteToMove and move.pieceCaptured not in self.blackpieces)):
             return True
         return False
+
+    
+    def isPromotionMove(self, move):
+        return ((move.pieceMoved == "wp" and move.endRow == 0) or
+                (move.pieceMoved == "bp" and move.endRow == 7))
+
+    def beginPromotion(self, move):
+        self.board[move.startRow][move.startCol] = "__"
+        self.board[move.endRow][move.endCol] = move.pieceMoved
+
+        self.pendingPromotion = {
+            "move": move,
+            "color": "w" if move.pieceMoved == "wp" else "b",
+        }
+
+        return "promotion"
+
+    def completePromotion(self, promotedPiece):
+        if self.pendingPromotion is None:
+            return False
+
+        move = self.pendingPromotion["move"]
+        self.board[move.endRow][move.endCol] = promotedPiece
+        self.moveLogs.append(move)
+        self.whiteToMove = not self.whiteToMove
+        self.pendingPromotion = None
+
+        return True
 
     def possibleBishopMoves(self, move):
         possibleMovesList = []
