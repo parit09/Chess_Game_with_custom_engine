@@ -111,18 +111,25 @@ def main():
                     squareSelected = ()  # reset user clicks
                     squareClicked = []
         
-        drawGameState(screen, gamestate)
+        drawGameState(screen, gamestate, squareSelected)
         clock.tick(MAX_FPS)
         pyg.display.flip()
 
 
-def drawGameState(screen, gamestate):
+def drawGameState(screen, gamestate, squareSelected=()):
     drawBoard(screen)
+    validMoves = []
+    if squareSelected != ():
+        selectedMove = MakeMoves(squareSelected, squareSelected, gamestate.board)
+        validMoves = gamestate.validPieceMoves(selectedMove)
+
+    hilightSquare(screen, gamestate, validMoves, squareSelected=squareSelected)
     drawPieces(screen, gamestate.board)
     drawPromotionDropdown(screen, gamestate)
 
 
 def drawBoard(screen):
+    global colors
     colors = [pyg.Color("white"), pyg.Color("gray")]
     for r in range(DIM):
         for c in range(DIM):
@@ -155,6 +162,33 @@ def drawPromotionDropdown(screen, gamestate):
         optionRect = pyg.Rect(panelRect.x, panelRect.y + index * SQU_HEIGHT, SQU_WIDTH, SQU_HEIGHT)
         pyg.draw.rect(screen, optionColor, optionRect, 1)
         screen.blit(BOARD[piece], optionRect)
+
+def hilightSquare(screen, gamestate, validMoves, squareSelected):
+    if(squareSelected != ()):
+        r, c = squareSelected
+        if gamestate.board[r][c][0] == ("w" if gamestate.whiteToMove else "b"):
+            s = pyg.Surface((SQU_WIDTH, SQU_HEIGHT))
+            s.set_alpha(100)  # transparency value
+            s.fill(pyg.Color("purple"))
+            screen.blit(s, (c*SQU_WIDTH, r*SQU_HEIGHT))
+
+            s.fill(pyg.Color("blue"))
+            for move in validMoves:
+                endRow, endCol = move
+                screen.blit(s, (endCol*SQU_WIDTH, endRow*SQU_HEIGHT))
+
+# animating the move
+
+def animateMove(move, screen, gamestate, clock):
+    global colors
+    coordinates = []
+    dR = move.endrow - move.startRow
+    dC = move.endCol - move.startCol
+    framespersquare = 10 # frames moved per square
+    framescount = framespersquare * (abs(dR) + abs(dC))
+    for frame in range(framescount + 1):
+        coordinates.append((move.startRow + dR * frame/framescount, move.startCol + dC * frame/framescount)) 
+
 
 if __name__ == "__main__":
     main()
