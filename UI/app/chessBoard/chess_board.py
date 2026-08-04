@@ -163,6 +163,32 @@ class ChessBoard:
 
         return possibleMovesList
 
+    def possibleKnightMoves(self, move):
+        possibleMovesList = []
+        currRow = move.startRow
+        currCol = move.startCol
+        knightMoves = [
+            (2, 1), (2, -1), (-2, 1), (-2, -1),
+            (1, 2), (1, -2), (-1, 2), (-1, -2)
+        ]
+
+        for dx, dy in knightMoves:
+            x = currRow + dx
+            y = currCol + dy
+
+            if 0 <= x < 8 and 0 <= y < 8:
+                if self.board[x][y] == "__":
+                    possibleMovesList.append((x, y))
+                else:
+                    if self.whiteToMove:
+                        if self.board[x][y] in self.blackpieces and self.board[x][y] != "bK":
+                            possibleMovesList.append((x, y))
+                    else:
+                        if self.board[x][y] in self.whitepieces and self.board[x][y] != "wK":
+                            possibleMovesList.append((x, y))
+
+        return possibleMovesList
+
     def possibleRookMoves(self, move):
         possibleMovesList = []
         currRow = move.startRow
@@ -265,22 +291,56 @@ class ChessBoard:
                     return False
 
         return True
+
+    def possiblePawnMoves(self, move):
+        possibleMovesList = []
+        startRow = move.startRow
+        startCol = move.startCol
+
+        if move.pieceMoved == "wp":
+            oneStepRow = startRow - 1
+            twoStepRow = startRow - 2
+
+            if oneStepRow >= 0 and self.board[oneStepRow][startCol] == "__":
+                possibleMovesList.append((oneStepRow, startCol))
+
+                if startRow == 6 and self.board[twoStepRow][startCol] == "__":
+                    possibleMovesList.append((twoStepRow, startCol))
+
+            for colOffset in (-1, 1):
+                captureCol = startCol + colOffset
+                if oneStepRow >= 0 and 0 <= captureCol < 8:
+                    targetPiece = self.board[oneStepRow][captureCol]
+                    if targetPiece in self.blackpieces and targetPiece != "bK":
+                        possibleMovesList.append((oneStepRow, captureCol))
+
+            if self.Enpassant(move):
+                possibleMovesList.append((move.endRow, move.endCol))
+
+        else:
+            oneStepRow = startRow + 1
+            twoStepRow = startRow + 2
+
+            if oneStepRow < 8 and self.board[oneStepRow][startCol] == "__":
+                possibleMovesList.append((oneStepRow, startCol))
+
+                if startRow == 1 and self.board[twoStepRow][startCol] == "__":
+                    possibleMovesList.append((twoStepRow, startCol))
+
+            for colOffset in (-1, 1):
+                captureCol = startCol + colOffset
+                if oneStepRow < 8 and 0 <= captureCol < 8:
+                    targetPiece = self.board[oneStepRow][captureCol]
+                    if targetPiece in self.whitepieces and targetPiece != "wK":
+                        possibleMovesList.append((oneStepRow, captureCol))
+
+            if self.Enpassant(move):
+                possibleMovesList.append((move.endRow, move.endCol))
+
+        return possibleMovesList
     
     def pawnMove(self, move):
-        if(self.pawnTakes(move)): return True
-        if self.validMove(move):
-            if (move.pieceMoved == "bp"):
-                if move.startRow == 1 and move.endCol == move.startCol and move.endRow == 3:
-                    return True
-                elif move.endCol == move.startCol and move.endRow - move.startRow == 1:
-                    return True
-            else:
-                if move.startRow == 6 and move.endCol == move.startCol and move.endRow == 4:
-                    return True
-                elif move.endCol == move.startCol and move.startRow - move.endRow == 1:
-                    return True
-
-        return False
+        return self.validMove(move) and (move.endRow, move.endCol) in self.possiblePawnMoves(move)
 
     def pawnTakes(self, move):
         if(self.whiteToMove and move.pieceCaptured[0] == "b" and move.pieceCaptured[1] != "K"): return True
@@ -334,11 +394,8 @@ class ChessBoard:
         return self.rookMove(move) or self.bishopMove(move)
 
     def nightMove(self, move):
-        if self.validMove(move):
-            diffcol = abs(move.startCol - move.endCol)
-            diffrow = abs(move.startRow - move.endRow)
-            if((diffcol == 1 and diffrow == 2) or (diffrow == 1 and diffcol == 2)):
-                return True
+        if self.validMove(move) and (move.endRow, move.endCol) in self.possibleKnightMoves(move):
+            return True
         return False
 
     def isKingInCheck(self):
@@ -346,8 +403,7 @@ class ChessBoard:
         return not self.isSquareSafe(kingPos[0], kingPos[1])
 
     def kingMove(self, move):
-        if(self.validMove(move) and (move.endRow, move.endCol) in self.possibleKingMoves(move) 
-           and self.isSquareSafe(move.endRow, move.endCol)):
+        if(self.validMove(move) and (move.endRow, move.endCol) in self.possibleKingMoves(move)):
             if move.pieceMoved == "wK":
                 self.whiteKingPos = (move.endRow, move.endCol)
             if move.pieceMoved == "bK":
@@ -368,19 +424,44 @@ class ChessBoard:
                 x, y = currRow + dx[i], currCol + dy[i] 
                 if (x < 8 and y < 8 and x > -1 and y > -1):
                     if(self.board[x][y] == "__"):
-                        possibleMovesList.append((x,y))
+                        if self._isKingMoveSafe(move, x, y):
+                            possibleMovesList.append((x,y))
                     else:
                         if(self.whiteToMove):
-                            if(self.board[x][y] in self.blackpieces and self.board[x][y] != "bK"):
+                            if(self.board[x][y] in self.blackpieces and self.board[x][y] != "bK" and self._isKingMoveSafe(move, x, y)):
                                 possibleMovesList.append((x,y))
                         else:
-                            if(self.board[x][y] in self.whitepieces and self.board[x][y] != "wK"):
+                            if(self.board[x][y] in self.whitepieces and self.board[x][y] != "wK" and self._isKingMoveSafe(move, x, y)):
                                 possibleMovesList.append((x,y))
 
         if(self.isCastlingPossible(move)):
             self.castlingMove(possibleMovesList)
 
         return possibleMovesList
+
+    def _isKingMoveSafe(self, move, endRow, endCol):
+        startRow, startCol = move.startRow, move.startCol
+        movingPiece = self.board[startRow][startCol]
+        capturedPiece = self.board[endRow][endCol]
+        savedWhiteKingPos = self.whiteKingPos
+        savedBlackKingPos = self.blackKingPos
+
+        self.board[startRow][startCol] = "__"
+        self.board[endRow][endCol] = movingPiece
+
+        if movingPiece == "wK":
+            self.whiteKingPos = (endRow, endCol)
+        else:
+            self.blackKingPos = (endRow, endCol)
+
+        safe = self.isSquareSafe(endRow, endCol)
+
+        self.board[startRow][startCol] = movingPiece
+        self.board[endRow][endCol] = capturedPiece
+        self.whiteKingPos = savedWhiteKingPos
+        self.blackKingPos = savedBlackKingPos
+
+        return safe
 
     def isCastlingPossible(self, move):
         if(self.whiteToMove and not self.hasWhiteKingMoved and 
@@ -430,7 +511,32 @@ class ChessBoard:
                     and self.isSquareSafe(0, 6) and self.isSquareSafe(0, 7))
                     and self.board[0][7] == "bR" and not self.hasBlackRooksMoved[1]):
                     possibleMovesList.append((0, 6))
-        
+
+    def validPieceMove(self, move, possibleMoves=None):
+        if possibleMoves is None:
+            if move.pieceMoved in ("bp", "wp"):
+                possibleMoves = self.possiblePawnMoves(move)
+            elif move.pieceMoved in ("bR", "wR"):
+                possibleMoves = self.possibleRookMoves(move)
+            elif move.pieceMoved in ("bN", "wN"):
+                possibleMoves = self.possibleKnightMoves(move)
+            elif move.pieceMoved in ("bB", "wB"):
+                possibleMoves = self.possibleBishopMoves(move)
+            elif move.pieceMoved in ("bQ", "wQ"):
+                possibleMoves = self.possibleRookMoves(move) + self.possibleBishopMoves(move)
+            elif move.pieceMoved in ("bK", "wK"):
+                possibleMoves = self.possibleKingMoves(move)
+            else:
+                return []
+
+        if move.pieceMoved in ("bK", "wK"):
+            return [candidate for candidate in possibleMoves if self._isKingMoveSafe(move, candidate[0], candidate[1])]
+
+        return possibleMoves
+
+    def validPieceMoves(self, move):
+        return self.validPieceMove(move)
+
     
 
 class MakeMoves:
