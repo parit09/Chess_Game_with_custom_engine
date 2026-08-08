@@ -20,6 +20,8 @@ class ChessBoard:
         self.whiteKingPos = (7, 4)
         self.blackKingPos = (0, 4)
         self.pendingPromotion = None
+        self.gameOver = None
+        self.winnerPieces = []
 
     def makeMove(self, move):
         if self.pendingPromotion is not None:
@@ -536,6 +538,64 @@ class ChessBoard:
 
     def validPieceMoves(self, move):
         return self.validPieceMove(move)
+
+    def hasAnyLegalMoves(self):
+        from .chess_board import MakeMoves as _MM  # local reference (safe at runtime)
+        for r in range(8):
+            for c in range(8):
+                piece = self.board[r][c]
+                if piece == "__":
+                    continue
+                if (self.whiteToMove and piece[0] != 'w') or (not self.whiteToMove and piece[0] != 'b'):
+                    continue
+
+                start = (r, c)
+                probe = _MM(start, start, self.board)
+                candidates = self.validPieceMoves(probe)
+                for dest in candidates:
+                    endR, endC = dest
+                    movedPiece = self.board[r][c]
+                    captured = self.board[endR][endC]
+
+                    # make the move on board temporarily
+                    self.board[r][c] = "__"
+                    self.board[endR][endC] = movedPiece
+                    savedWhite = self.whiteKingPos
+                    savedBlack = self.blackKingPos
+                    if movedPiece == "wK":
+                        self.whiteKingPos = (endR, endC)
+                    elif movedPiece == "bK":
+                        self.blackKingPos = (endR, endC)
+
+                    inCheck = self.isKingInCheck()
+
+                    # restore
+                    self.board[r][c] = movedPiece
+                    self.board[endR][endC] = captured
+                    self.whiteKingPos = savedWhite
+                    self.blackKingPos = savedBlack
+
+                    if not inCheck:
+                        return True
+
+        return False
+
+    def isCheckmate(self):
+        return self.isKingInCheck() and not self.hasAnyLegalMoves()
+
+    def isStalemate(self):
+        return (not self.isKingInCheck()) and (not self.hasAnyLegalMoves())
+
+    def getWinnerPieces(self):
+        # return list of remaining pieces for the side that is NOT to move (the player who just moved)
+        winner_color = 'w' if not self.whiteToMove else 'b'
+        pieces = []
+        for r in range(8):
+            for c in range(8):
+                p = self.board[r][c]
+                if p != "__" and p[0] == winner_color:
+                    pieces.append(p)
+        return pieces
 
     
 

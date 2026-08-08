@@ -74,6 +74,8 @@ def main():
     clock = pyg.time.Clock()
     gamestate = ChessBoard()
     loadAssets()
+    global FONT
+    FONT = pyg.font.SysFont(None, 28)
 
     running = True
     squareSelected = ()  # keeps track of the last square clicked (row, col)
@@ -107,7 +109,15 @@ def main():
                 if len(squareClicked) == 2:  # after 2nd click
                     move = MakeMoves(squareClicked[0], squareClicked[1], gamestate.board)
                     print(move.getChessNotation())
-                    gamestate.makeMove(move)
+                    result = gamestate.makeMove(move)
+                    # after a successful non-promotion move, check for game end
+                    if result is True:
+                        if gamestate.isCheckmate():
+                            gamestate.gameOver = 'checkmate'
+                            gamestate.winnerPieces = gamestate.getWinnerPieces()
+                        elif gamestate.isStalemate():
+                            gamestate.gameOver = 'stalemate'
+                    # if result == "promotion" the pendingPromotion UI will handle completion
                     squareSelected = ()  # reset user clicks
                     squareClicked = []
         
@@ -126,6 +136,9 @@ def drawGameState(screen, gamestate, squareSelected=()):
     hilightSquare(screen, gamestate, validMoves, squareSelected=squareSelected)
     drawPieces(screen, gamestate.board)
     drawPromotionDropdown(screen, gamestate)
+    # draw game over overlay if needed
+    if getattr(gamestate, 'gameOver', None) is not None:
+        drawGameOver(screen, gamestate)
 
 
 def drawBoard(screen):
@@ -176,6 +189,22 @@ def hilightSquare(screen, gamestate, validMoves, squareSelected):
             for move in validMoves:
                 endRow, endCol = move
                 screen.blit(s, (endCol*SQU_WIDTH, endRow*SQU_HEIGHT))
+    
+
+def drawGameOver(screen, gamestate):
+    overlay = pyg.Surface((WIDTH, HEIGHT), pyg.SRCALPHA)
+    overlay.fill((0, 0, 0, 150))
+    screen.blit(overlay, (0, 0))
+
+    if gamestate.gameOver == 'stalemate':
+        text = 'Draw by stalemate'
+        text_surf = FONT.render(text, True, pyg.Color('white'))
+        screen.blit(text_surf, (20, 20))
+    elif gamestate.gameOver == 'checkmate':
+        winner_color = 'White' if (not gamestate.whiteToMove) else 'Black'
+        text = f'Checkmate! {winner_color} wins'
+        text_surf = FONT.render(text, True, pyg.Color('white'))
+        screen.blit(text_surf, (20, 20))
 
 # animating the move
 
